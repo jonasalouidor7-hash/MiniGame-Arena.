@@ -26,13 +26,27 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build test APK
-        working-directory: MiniGame-Arena-Android
-        run: gradle assembleDebug
+      - name: Restore private signing key
+        shell: bash
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > release-key.jks
 
-      - name: Save APK for download
+      - name: Build signed release APK
+        working-directory: MiniGame-Arena-Android
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/release-key.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          gradle assembleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_FILE" \
+            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+
+      - name: Save signed release APK
         uses: actions/upload-artifact@v4
         with:
-          name: MiniGame-Arena-APK
-          path: MiniGame-Arena-Android/app/build/outputs/apk/debug/app-debug.apk
+          name: MiniGame-Arena-Release-APK
+          path: MiniGame-Arena-Android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
